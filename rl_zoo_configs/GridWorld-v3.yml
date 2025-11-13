@@ -1,0 +1,19 @@
+# Hyperparamètres pour PPO sur l'environnement GridWorld-v3
+GridWorld-v3:
+  n_envs: 1
+  n_timesteps: 100000
+  policy: 'MlpPolicy'
+  n_steps: 128
+  batch_size: 64
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  learning_rate: 2.5e-4
+  clip_range: 0.2
+  n_epochs: 10
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  use_sde: False
+  normalize_advantage: True
+  target_kl: null
+  policy_kwargs: "dict(net_arch=[128, 128])"

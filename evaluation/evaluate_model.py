@@ -4,7 +4,6 @@ import os
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(project_root)
-print(f"📂 Répertoire de travail changé en : {project_root}")
 
 import gymnasium as gym
 from stable_baselines3 import PPO
@@ -32,5 +31,5 @@ def evaluate_model(model_path: str, n_episodes: int = 5):
     env.close()
 
 if __name__ == "__main__":
-    model_file = "ppo_gridworld_v1"  # chemin vers ton modèle sauvegardé
-    evaluate_model(model_file, n_episodes=5)
+    model_file = "ppo_gridworld"  # chemin vers ton modèle sauvegardé
+    evaluate_model(model_file, n_episodes=3)

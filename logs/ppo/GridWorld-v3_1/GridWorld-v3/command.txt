@@ -1,0 +1,1 @@
+python train_gridworld_v3.py --algo ppo --env GridWorld-v3 --conf rl_zoo_configs/GridWorld-v3.yml --tensorboard-log ./tensorboard/

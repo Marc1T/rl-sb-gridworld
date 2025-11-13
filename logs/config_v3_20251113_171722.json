@@ -1,11 +1,11 @@
-config = {
+{
     "env": {
         "size": 4,
-        "render_mode": "rgb_array",  # "human" pour affichage direct, "rgb_array" pour vidéo
+        "render_mode": "rgb_array",
         "n_obstacles": 2
     },
     "ppo": {
-        "learning_rate": 3e-4,
+        "learning_rate": 0.0003,
         "n_steps": 1024,
         "batch_size": 64,
         "n_epochs": 10,
@@ -17,7 +17,7 @@ config = {
         "max_grad_norm": 0.5,
         "target_kl": 0.03
     },
-        "env_v3": {
+    "env_v3": {
         "grid_size": 7,
         "n_agents": 2,
         "n_goals": 2,
@@ -30,7 +30,7 @@ config = {
         "seed": 42
     },
     "ppo_v3": {
-        "learning_rate": 3e-4,
+        "learning_rate": 0.0003,
         "n_steps": 2048,
         "batch_size": 64,
         "n_epochs": 10,
@@ -47,8 +47,8 @@ config = {
         "eval_freq": 2000,
         "n_eval_episodes": 10,
         "seed": 42,
-        "total_timesteps_v3": 1_000,
-        "debug": False
+        "total_timesteps_v3": 1000,
+        "debug": false
     },
     "paths": {
         "video_folder": "./videos/",

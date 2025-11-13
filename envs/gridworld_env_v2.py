@@ -1,105 +1,155 @@
+# envs/gridworld_env_v2.py
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-import pygame
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import random
+
 
 class GridWorldEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 8}
+    """
+    GridWorld v2 – environnement intelligent et adaptable
+    Compatible Stable-Baselines3 (PPO, DQN, A2C…)
+    """
 
-    def __init__(self, size=5, render_mode=None):
+    metadata = {"render_modes": ["human", "none"], "render_fps": 5}
+
+    def __init__(self, grid_size=7, n_obstacles=4, render_mode="none"):
         super(GridWorldEnv, self).__init__()
-        self.size = size
-        self.window_size = 500
+
+        self.grid_size = grid_size
+        self.n_obstacles = n_obstacles
         self.render_mode = render_mode
 
-        # Définir les actions (haut, bas, gauche, droite)
+        # Définition des actions : haut, bas, gauche, droite
         self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Box(low=0, high=size - 1, shape=(2,), dtype=np.int32)
 
-        # Initialisation
-        self.agent_pos = np.array([0, 0])
-        self.goal_pos = np.array([size - 1, size - 1])
+        # Observation : position agent + but + obstacles (sous forme vectorielle)
+        self.observation_space = spaces.Box(
+            low=0, high=1, shape=(grid_size, grid_size, 3), dtype=np.float32
+        )
 
-        # Interface Pygame
-        self.window = None
-        self.clock = None
-        self.cell_size = self.window_size // self.size
+        # Couleurs
+        self.agent_color = (0, 0, 1)    # Bleu
+        self.goal_color = (0, 1, 0)     # Vert
+        self.obstacle_color = (1, 0, 0) # Rouge
+
+        # Initialisation du rendu
+        self.fig, self.ax = None, None
+        self.agent_pos = None
+        self.goal_pos = None
+        self.obstacles = None
+
+        self.reset(seed=None)
+
+    # --------------------------
+    # ENVIRONMENT CORE
+    # --------------------------
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        self.agent_pos = np.array([0, 0])
-        obs = self.agent_pos.copy()
+
+        # Position aléatoire de l'agent et du but
+        self.agent_pos = self._random_position()
+        self.goal_pos = self._random_position(exclude=[self.agent_pos])
+
+        # Génération aléatoire des obstacles
+        self.obstacles = []
+        for _ in range(self.n_obstacles):
+            pos = self._random_position(exclude=[self.agent_pos, self.goal_pos] + self.obstacles)
+            self.obstacles.append(pos)
+
+        obs = self._get_obs()
         info = {}
+
         return obs, info
 
     def step(self, action):
-        # Déplacement
-        if action == 0:  # Haut
-            self.agent_pos[1] = max(self.agent_pos[1] - 1, 0)
-        elif action == 1:  # Bas
-            self.agent_pos[1] = min(self.agent_pos[1] + 1, self.size - 1)
-        elif action == 2:  # Gauche
-            self.agent_pos[0] = max(self.agent_pos[0] - 1, 0)
-        elif action == 3:  # Droite
-            self.agent_pos[0] = min(self.agent_pos[0] + 1, self.size - 1)
+        # Calcul du prochain mouvement
+        x, y = self.agent_pos
+        if action == 0 and y > 0: y -= 1           # Haut
+        elif action == 1 and y < self.grid_size-1: y += 1  # Bas
+        elif action == 2 and x > 0: x -= 1         # Gauche
+        elif action == 3 and x < self.grid_size-1: x += 1  # Droite
 
-        done = np.array_equal(self.agent_pos, self.goal_pos)
-        reward = 1 if done else -0.01
+        new_pos = (x, y)
+        reward = -0.05  # petite pénalité à chaque pas
+        terminated = False
 
-        if self.render_mode == "human":
-            self.render()
+        if new_pos in self.obstacles:
+            reward = -1.0
+        else:
+            self.agent_pos = new_pos
+            if self.agent_pos == self.goal_pos:
+                reward = 1.0
+                terminated = True
 
-        return self.agent_pos.copy(), reward, done, False, {}
+        obs = self._get_obs()
+        info = {}
+
+        return obs, reward, terminated, False, info
+
+    # --------------------------
+    # HELPER FUNCTIONS
+    # --------------------------
+
+    def _random_position(self, exclude=None):
+        if exclude is None:
+            exclude = []
+        while True:
+            pos = (random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1))
+            if pos not in exclude:
+                return pos
+
+    def _get_obs(self):
+        grid = np.zeros((self.grid_size, self.grid_size, 3), dtype=np.float32)
+        for (ox, oy) in self.obstacles:
+            grid[oy, ox] = self.obstacle_color
+        ax, ay = self.agent_pos
+        gx, gy = self.goal_pos
+        grid[ay, ax] = self.agent_color
+        grid[gy, gx] = self.goal_color
+        return grid
+
+    # --------------------------
+    # RENDERING
+    # --------------------------
 
     def render(self):
-        if self.window is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.set_caption("🏁 GridWorld - Stable Baselines3")
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
-            self.clock = pygame.time.Clock()
+        if self.render_mode == "none":
+            return
 
-        if self.render_mode == "human":
-            self.window.fill((255, 255, 255))  # fond blanc
+        if self.fig is None:
+            plt.ion()
+            self.fig, self.ax = plt.subplots(figsize=(5, 5))
+            self.ax.set_xticks(np.arange(-0.5, self.grid_size, 1))
+            self.ax.set_yticks(np.arange(-0.5, self.grid_size, 1))
+            self.ax.set_xticklabels([])
+            self.ax.set_yticklabels([])
+            self.ax.grid(True)
 
-            # Dessiner la grille
-            for x in range(self.size):
-                for y in range(self.size):
-                    rect = pygame.Rect(
-                        x * self.cell_size,
-                        y * self.cell_size,
-                        self.cell_size,
-                        self.cell_size,
-                    )
-                    pygame.draw.rect(self.window, (200, 200, 200), rect, 1)
+        self.ax.clear()
+        self.ax.set_xlim(-0.5, self.grid_size - 0.5)
+        self.ax.set_ylim(-0.5, self.grid_size - 0.5)
+        self.ax.grid(True)
 
-            # Dessiner la cible
-            gx, gy = self.goal_pos
-            pygame.draw.rect(
-                self.window,
-                (50, 205, 50),  # vert
-                pygame.Rect(gx * self.cell_size, gy * self.cell_size, self.cell_size, self.cell_size),
-            )
+        # Dessiner obstacles
+        for (x, y) in self.obstacles:
+            self.ax.add_patch(patches.Rectangle((x - 0.5, y - 0.5), 1, 1, color="red"))
 
-            # Dessiner l’agent
-            ax, ay = self.agent_pos
-            pygame.draw.circle(
-                self.window,
-                (30, 144, 255),  # bleu
-                (ax * self.cell_size + self.cell_size // 2, ay * self.cell_size + self.cell_size // 2),
-                self.cell_size // 3,
-            )
+        # Dessiner but
+        gx, gy = self.goal_pos
+        self.ax.add_patch(patches.Rectangle((gx - 0.5, gy - 0.5), 1, 1, color="green"))
 
-            pygame.display.flip()
-            self.clock.tick(self.metadata["render_fps"])
+        # Dessiner agent
+        ax, ay = self.agent_pos
+        self.ax.add_patch(patches.Circle((ax, ay), 0.3, color="blue"))
 
-        elif self.render_mode == "rgb_array":
-            surface = pygame.Surface((self.window_size, self.window_size))
-            surface.fill((255, 255, 255))
-            # (Tu peux étendre ce mode plus tard pour générer des vidéos)
-            return np.transpose(np.array(pygame.surfarray.pixels3d(surface)), axes=(1, 0, 2))
+        plt.draw()
+        plt.pause(0.1)
 
     def close(self):
-        if self.window is not None:
-            pygame.display.quit()
-            pygame.quit()
-            self.window = None
+        if self.fig:
+            plt.close(self.fig)
+            self.fig = None

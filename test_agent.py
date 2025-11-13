@@ -1,7 +1,7 @@
 import os
 import gymnasium as gym
 from stable_baselines3 import PPO
-from envs.gridworld_env import GridWorldEnv
+from envs.gridworld_env_v2 import GridWorldEnv
 from gymnasium.wrappers import RecordVideo
 
 # 📁 Vérifie que le dossier vidéo existe
